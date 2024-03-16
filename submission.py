@@ -2,6 +2,9 @@ from Agent import Agent, AgentGreedy
 from WarehouseEnv import WarehouseEnv, manhattan_distance
 import random
 import time
+import multiprocessing
+
+all_operators = ['park', 'move north', 'move south', 'move east', 'move west', 'pick up', 'charge', 'drop off']
 
 
 # TODO: section a : 3
@@ -53,8 +56,8 @@ class AgentGreedyImproved(AgentGreedy):
 
 class AgentMinimax(Agent):
 
-    def rb_minmax(self, env, agent_id, agent_turn_id, start_time, time_limit):
-        if env.done() or time.time() - start_time > 0.99 * time_limit:
+    def rb_minmax(self, env, agent_id, agent_turn_id, d):
+        if env.done() or d == 0:
             return smart_heuristic(env, agent_id), None
 
         operators, children = self.successors(env, agent_turn_id)
@@ -63,7 +66,7 @@ class AgentMinimax(Agent):
             curr_max = float("-inf")
             step = None
             for child, op in zip(children, operators):
-                val, _ = self.rb_minmax(child, agent_id, 1 - agent_turn_id, start_time, time_limit)
+                val, _ = self.rb_minmax(child, agent_id, 1 - agent_turn_id, d-1)
                 if val > curr_max:
                     step = op
                     curr_max = val
@@ -72,21 +75,38 @@ class AgentMinimax(Agent):
         else:
             curr_min = float("inf")
             for child in children:
-                val, _ = self.rb_minmax(child, agent_id, 1 - agent_turn_id, start_time, time_limit)
+                val, _ = self.rb_minmax(child, agent_id, 1 - agent_turn_id, d-1)
                 curr_min = min(curr_min, val)
 
             return curr_min, None
 
+    def anytime_minimax(self, env, agent_id, chosen_operator):
+        d = 1
+
+        while True:
+            _, op = self.rb_minmax(env, agent_id, agent_turn_id=agent_id, d=d)
+            chosen_operator.value = all_operators.index(op)
+            d += 1
+
     # TODO: section b : 1
     def run_step(self, env: WarehouseEnv, agent_id, time_limit):
-        _, step = self.rb_minmax(env, agent_id, agent_turn_id=agent_id, start_time=time.time(), time_limit=time_limit)
-        return step
+        operators, _ = self.successors(env, agent_id)
+        rand_op = random.choice(operators)
+        chosen_operator = multiprocessing.Value('i', all_operators.index(rand_op))
+
+        process = multiprocessing.Process(target=self.anytime_minimax, args=(env, agent_id, chosen_operator))
+        process.start()
+
+        process.join(timeout=0.95 * time_limit)
+        process.terminate()
+
+        return all_operators[chosen_operator.value]
 
 
 class AgentAlphaBeta(Agent):
 
     def rb_alpha_beta(self, env, agent_id, agent_turn_id, alpha, beta, start_time, time_limit):
-        if env.done() or time.time() - start_time > 0.99 * time_limit:
+        if env.done() or time.time() - start_time > 0.95 * time_limit:
             return smart_heuristic(env, agent_id), None
 
         operators, children = self.successors(env, agent_turn_id)
@@ -139,7 +159,7 @@ class AgentExpectimax(Agent):
         return op_to_prob
 
     def rb_expectimax(self, env, agent_id, agent_turn_id, start_time, time_limit):
-        if env.done() or time.time() - start_time > 0.99 * time_limit:
+        if env.done() or time.time() - start_time > 0.95 * time_limit:
             return smart_heuristic(env, agent_id), None
 
         operators, children = self.successors(env, agent_turn_id)
