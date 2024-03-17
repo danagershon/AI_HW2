@@ -98,8 +98,8 @@ class AgentMinimax(Agent):
 
 class AgentAlphaBeta(Agent):
 
-    def rb_alpha_beta(self, env, agent_id, agent_turn_id, alpha, beta, start_time, time_limit):
-        if env.done() or time.time() - start_time > 0.95 * time_limit:
+    def rb_alpha_beta(self, env, agent_id, agent_turn_id, d, alpha, beta, start_time, time_limit):
+        if env.done() or d == 0 or time.time() - start_time > 0.95 * time_limit:
             return smart_heuristic(env, agent_id), None
 
         operators, children = self.successors(env, agent_turn_id)
@@ -108,7 +108,7 @@ class AgentAlphaBeta(Agent):
             curr_max = float("-inf")
             step = None
             for child, op in zip(children, operators):
-                val, _ = self.rb_alpha_beta(child, agent_id, 1 - agent_turn_id, alpha, beta, start_time, time_limit)
+                val, _ = self.rb_alpha_beta(child, agent_id, 1 - agent_turn_id, d-1, alpha, beta, start_time, time_limit)
                 if val > curr_max:
                     step = op
                     curr_max = val
@@ -120,7 +120,7 @@ class AgentAlphaBeta(Agent):
         else:
             curr_min = float("inf")
             for child in children:
-                val, _ = self.rb_alpha_beta(child, agent_id, 1 - agent_turn_id, alpha, beta, start_time, time_limit)
+                val, _ = self.rb_alpha_beta(child, agent_id, 1 - agent_turn_id, d-1, alpha, beta, start_time, time_limit)
                 curr_min = min(curr_min, val)
                 beta = min(curr_min, beta)
                 if curr_min <= alpha:
@@ -128,11 +128,21 @@ class AgentAlphaBeta(Agent):
 
             return curr_min, None
 
+    def anytime_rb_alpha_beta(self, env, agent_id, time_limit):
+        start_time = time.time()
+        operators, _ = self.successors(env, agent_id)
+        chosen_operator = random.choice(operators)
+        d = 1
+
+        while time.time() - start_time < 0.95 * time_limit:
+            _, chosen_operator = self.rb_alpha_beta(env, agent_id, agent_id, d, float("-inf"), float("inf"), start_time, time_limit)
+            d += 1
+
+        return chosen_operator
+
     # TODO: section c : 1
     def run_step(self, env: WarehouseEnv, agent_id, time_limit):
-        _, step = self.rb_alpha_beta(env, agent_id, agent_turn_id=agent_id, alpha=float("-inf"), beta=float("inf"),
-                                     start_time=time.time(), time_limit=time_limit)
-        return step
+        return self.anytime_rb_alpha_beta(env, agent_id, time_limit)
 
 
 class AgentExpectimax(Agent):
@@ -151,8 +161,8 @@ class AgentExpectimax(Agent):
 
         return op_to_prob
 
-    def rb_expectimax(self, env, agent_id, agent_turn_id, start_time, time_limit):
-        if env.done() or time.time() - start_time > 0.95 * time_limit:
+    def rb_expectimax(self, env, agent_id, agent_turn_id, d, start_time, time_limit):
+        if env.done() or d == 0 or time.time() - start_time > 0.95 * time_limit:
             return smart_heuristic(env, agent_id), None
 
         operators, children = self.successors(env, agent_turn_id)
@@ -161,7 +171,7 @@ class AgentExpectimax(Agent):
             curr_max = float("-inf")
             step = None
             for child, op in zip(children, operators):
-                val, _ = self.rb_expectimax(child, agent_id, 1 - agent_turn_id, start_time, time_limit)
+                val, _ = self.rb_expectimax(child, agent_id, 1 - agent_turn_id, d-1, start_time, time_limit)
                 if val > curr_max:
                     step = op
                     curr_max = val
@@ -171,15 +181,26 @@ class AgentExpectimax(Agent):
             curr_val = 0
             op_to_prob = self.cal_operators_prob(operators)
             for child, op in zip(children, operators):
-                val, _ = self.rb_expectimax(child, agent_id, 1 - agent_turn_id, start_time, time_limit)
+                val, _ = self.rb_expectimax(child, agent_id, 1 - agent_turn_id, d-1, start_time, time_limit)
                 curr_val += op_to_prob[op] * val
 
             return curr_val, None
 
+    def anytime_rb_expectimax(self, env, agent_id, time_limit):
+        start_time = time.time()
+        operators, _ = self.successors(env, agent_id)
+        chosen_operator = random.choice(operators)
+        d = 1
+
+        while time.time() - start_time < 0.95 * time_limit:
+            _, chosen_operator = self.rb_expectimax(env, agent_id, agent_id, d, start_time, time_limit)
+            d += 1
+
+        return chosen_operator
+
     # TODO: section d : 1
     def run_step(self, env: WarehouseEnv, agent_id, time_limit):
-        _, step = self.rb_expectimax(env, agent_id, agent_turn_id=agent_id, start_time=time.time(), time_limit=time_limit)
-        return step
+        return self.anytime_rb_expectimax(env, agent_id, time_limit)
 
 
 # here you can check specific paths to get to know the environment
