@@ -86,7 +86,9 @@ class AgentMinimax(Agent):
         d = 1
 
         while time.time() - start_time < 0.95 * time_limit:
-            _, chosen_operator = self.rb_minmax(env, agent_id, agent_id, d, start_time, time_limit)
+            _, op = self.rb_minmax(env, agent_id, agent_id, d, start_time, time_limit)
+            if op is not None:
+                chosen_operator = op
             d += 1
 
         return chosen_operator
@@ -135,7 +137,9 @@ class AgentAlphaBeta(Agent):
         d = 1
 
         while time.time() - start_time < 0.95 * time_limit:
-            _, chosen_operator = self.rb_alpha_beta(env, agent_id, agent_id, d, float("-inf"), float("inf"), start_time, time_limit)
+            _, op = self.rb_alpha_beta(env, agent_id, agent_id, d, float("-inf"), float("inf"), start_time, time_limit)
+            if op is not None:
+                chosen_operator = op
             d += 1
 
         return chosen_operator
@@ -193,7 +197,9 @@ class AgentExpectimax(Agent):
         d = 1
 
         while time.time() - start_time < 0.95 * time_limit:
-            _, chosen_operator = self.rb_expectimax(env, agent_id, agent_id, d, start_time, time_limit)
+            _, op = self.rb_expectimax(env, agent_id, agent_id, d, start_time, time_limit)
+            if op is not None:
+                chosen_operator = op
             d += 1
 
         return chosen_operator
